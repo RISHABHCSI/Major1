@@ -1,5 +1,6 @@
 import os
 import summarize
+sentPos=[]
 # location of directory you want to scan
 loc = '/Major1 Project/nlp/Datasets/Timeline17/Data/H1N1_guardian/InputDocs'
 # global dictonary element used to store all results
@@ -43,19 +44,17 @@ def generateSum():
         # print initial_list[i]
         sec=os.listdir(loc+'/'+initial_list[i])
         for j in sec:
+            k=0
             ob=open(loc+'/'+initial_list[i]+'/'+j)
             Summary.append(summarize.generateSum(loc+'/'+initial_list[i]+'/'+j))
             a=ob.readlines()
             s=""
             for l in a:
                 Training.append(l)
+                sentPos.append(k)
+                k+=1
          
     for s in Summary:
         for i in s:
             resultList.append(i)
 generateSum()
-
-
-# k =scan(initial_list,loc)
-# print " ..................................................................................."
-# print k
