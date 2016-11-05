@@ -286,24 +286,8 @@ def doBatchSTS(comments,threshold):
 					clustersAssigned,clusters=classify(comments,clusters,temp1,clustersAssigned,temp2)
 				else:
 					val+=1
+	
 	return clusters,clustersAssigned
-
-def visualize(clusters,clustersAssigned,comments,percentNeeded,overlapPercent):
-	howManyAssigned=[]
-	for i in range(0,len(clusters)):
-		counti=0
-		for j in range(0,len(clustersAssigned)):
-			if clustersAssigned[j]==i:
-				counti+=1
-		howManyAssigned.append([i,counti])
-	howManyAssigned.sort(key=lambda x:x[1])
-	howManyAssigned=howManyAssigned[:int(percentNeeded*len(howManyAssigned))]
-	# print howManyAssigned
-	keyTerms=[]
-	# for i in range(0,len(clusters)):
-	# 	keyTerm=keyCloud(clusters[i],overlapPercent)
-	# 	keyTerms.append(keyTerm)
-
 
 # input=removePunc(input)
 # input=convertToLower(input)
@@ -323,6 +307,8 @@ def visualize(clusters,clustersAssigned,comments,percentNeeded,overlapPercent):
 # input3="Richard of Pied Piper is the CEO"
 
 comments=generateComments()
+originalComments=tuple(comments)
+
 for i in range(0,len(comments)):
 	comments[i]=removePunc(comments[i])
 	comments[i]=removeStopWords(comments[i])
@@ -341,11 +327,131 @@ termvector=generateTermVector(commentstemp,distinct)
 
 
 clusters,clustersAssigned=doBatchSTS(termvector,threshold)
-print clusters
-print clustersAssigned
-print "\n\n"
-percentNeeded=100
-overlapPercent=0.5
-visualize(clusters,clustersAssigned,comments,percentNeeded/100,overlapPercent)
+# print clusters
+# print clustersAssigned
+# print "\n\n"
+finalcommentsBelong=[]
+for i in range(0,len(clusters)):
+	commentsbelong=[]
+	for j in range(0,len(comments)):
+		if clustersAssigned[j]==i:
+			commentsbelong.append(j)
+	finalcommentsBelong.append(commentsbelong)
+
+# for i in range(0,len(finalcommentsBelong)):
+# 	for j in range(0,len(finalcommentsBelong[i])):
+# 		print originalComments[finalcommentsBelong[i][j]]
+# 	print "\n\n\n\n\n\n"
+
+def generateReqGrams(comm,n):
+	gram=[]
+	for i in range(0,len(comm)-n+1):
+		temp=comm[i:i+n]
+		tempstr=""
+		for t in temp:
+			tempstr+=t+" "
+		tempstr=tempstr.rstrip()
+		found=0
+		for gr in gram:
+			if gr[0]==tempstr:
+				gr[1]+=1
+				found=1
+				break
+		if found==0:
+			gram.append([tempstr,1])		 	
+	return gram
+
+def intersect(str1,str2,overlapPercent):
+	str1=str1.split()
+	str2=str2.split()
+	count=0.0
+	for word in str2:
+		if word in str1:
+			count+=1.0
+	return count/len(str1)		
+
+def keyCloud(cluster,comments,commentsbelong,overlapPercent,k):
+	grams=[]
+	comm=[]
+	
+	for i in range(0,len(commentsbelong)):
+		keywords=comments[commentsbelong[i]].split()
+		for keyword in keywords:
+			comm.append(keyword)		
+	for i in range(1,len(comm)+1):
+		grams.append(generateReqGrams(comm,i))
+	for gram in grams:
+		val=0
+		for i in range(0,len(gram)):
+			if (gram[val][1])<k:
+				print gram[val]
+				del gram[val]
+			else:
+				val+=1	
+	
+	for gram in grams:
+		removelist=[]
+		for i in range(0,len(gram)):
+			for j in range(0,len(gram)):
+				if (i!=j and gram[j][1]>gram[i][1]):
+					if intersect(gram[j][0],gram[i][0],overlapPercent)>=overlapPercent:
+						removelist.append(i)
+		gramtemp=[]
+		for i in range(0,len(gram)):
+			if i not in removelist:
+				gramtemp.append(gram[i])
+		gram=gramtemp
+	
+
+	for i in range(0,len(grams)-1):
+		removelist=[]
+		for j in range(0,len(grams[i])):
+			for m in range(i+1,len(grams)):
+				for n in range(0,len(grams[m])):
+					if intersect(grams[m][n][0],grams[i][j][0],overlapPercent)>=overlapPercent:
+						removelist.append(j)
+		gramtemp=[]
+		for j in range(0,len(grams[i])):
+			if j not in removelist:
+				gramtemp.append(grams[i][j])
+		grams[i]=gramtemp
+	return grams	
+
+def countCommon(comment,grams):
+	comment=comment.split()
+	count=0
+	for word in comment:
+		for gram in grams:
+			for gr in gram:
+				if word in gr[0].split():
+					count+=1
+	return count				
+
+def visualize(clusters,clustersAssigned,comments,overlapPercent,k):
+	output=[]
+	for i in range(0,len(clusters)):
+		commentsbelong=[]
+		for j in range(0,len(clustersAssigned)):
+			if clustersAssigned[j]==i:
+				commentsbelong.append(j)
+		grams=keyCloud(clusters[i],comments,commentsbelong,overlapPercent,k)
+		sentenceval={}
+		for i in range(0,len(commentsbelong)):
+			common=countCommon(comments[commentsbelong[i]],grams)
+			if commentsbelong[i] not in sentenceval:
+				sentenceval[commentsbelong[i]]=common
+		print sentenceval	
+		sorted_sentenceval=sorted(sentenceval.items(), key=operator.itemgetter(1))
+		retreive=min(3,len(sorted_sentenceval))
+		sorted_sentenceval=sorted_sentenceval[len(sorted_sentenceval)-retreive:]
+		print sorted_sentenceval
+		print grams
+		for j in range(0,len(sorted_sentenceval)):
+			print comments[sorted_sentenceval[j][0]]
+		print "\n\n"	
+
+overlapPercent=0.8
+k=1
+visualize(clusters,clustersAssigned,originalComments,overlapPercent,k)
 
 
